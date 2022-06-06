@@ -1,0 +1,249 @@
+int clockpin = 2; //Cuando ay que leer los bit      SH
+int data     = 1;   //Envio datos                     DS
+int latch    = 0;  //indica pin de salida en el chip ST
+
+// no cambiar el const int
+const int  left_sen  = 4 ;   // pin 2 como entrada para el sensor izquierdo
+const int  right_sen = 3;    // pin 3 como entrada para el sensor derecho
+
+//VARIABLES PARA EL CONTADOR ASCENDIENTE
+// estas variables si puede ser cambiado
+int contador             = 0;
+int contadorU            = 0;
+int contadorD            = 0;
+int contadorC            = 0;
+int contadorM            = 0;
+int estado_left_sen      = 0;      // estado  del pulsado actual
+int lastButtonState_left = 1;     // estado  del pulsado anterior
+
+
+
+boolean start            = false;
+boolean start1           = false;
+boolean ena_D            = false;
+boolean ena_C            = false;
+boolean ok               = false;
+
+unsigned long time;
+float tiempo = 1000;
+unsigned long  t = 0;
+
+//VARIABLES PARA EL CONTADOR DESCENDIENTE
+// estas variables si puede ser cambiado
+
+int estado_right_sen      = 0;         // estado  del pulsado actual
+int lastButtonState_right = 1;     // estado  del pulsado anterior
+
+//Aqui esta el array que contiene todos los UNDs para nuestro display
+//El display tiene las conexiones alcontrario ell pin 8 del 74hc595 es el primer dijito binario
+
+const int NUM[] = { // segmentos
+  191,   //Numero 0 en binario es : 10111111
+  134,   //Numero 1 en binario es : 10000110
+  219,   //Numero 2 en binario es : 11011011
+  207,   //Numero 3 en binario es : 11001111
+  230,   //Numero 4 en binario es : 11100110
+  237,   //Numero 5 en binario es : 11101101
+  253,   //Numero 6 en binario es : 11111101
+  135,   //Numero 7 en binario es : 10000111
+  255,   //Numero 8 en binario es : 11111111
+  239,   //Numero 9 en binario es : 11101111
+  191,   //Numero 0 en binario es : 10111111
+
+
+  14,    //Numero 7 en binario es : 00001110
+  13,    //Numero 8 en binario es : 00001101
+  11,    //Numero 9 en binario es : 00001011
+  7,     //Numero 0 en binario es : 00000111
+
+  46,    //Numero 7 en binario es : 00101110
+  45,    //Numero 8 en binario es : 00101101
+  43,    //Numero 9 en binario es : 00101011
+  39,    //Numero 0 en binario es : 00100111
+
+};
+
+void setup() {
+
+  pinMode(left_sen, INPUT);
+  pinMode(right_sen, INPUT);
+
+  pinMode(latch, OUTPUT);
+  pinMode(clockpin, OUTPUT);
+  pinMode(data, OUTPUT);
+
+}
+void loop()
+{
+  if (start == false) {
+    digitalWrite(latch, LOW);
+    shiftOut(data, clockpin, MSBFIRST, NUM[11]); // lee el arreglo y pasa cada NUM a lectura binaria
+    shiftOut(data, clockpin, MSBFIRST, NUM[0]); // lee el arreglo y pasa cada NUM a lectura binaria
+    digitalWrite(latch, HIGH);
+    delayMicroseconds(1);
+    digitalWrite(latch, LOW);
+    shiftOut(data, clockpin, MSBFIRST, NUM[12]); // lee el arreglo y pasa cada NUM a lectura binaria
+    shiftOut(data, clockpin, MSBFIRST, NUM[0]); // lee el arreglo y pasa cada NUM a lectura binaria
+    digitalWrite(latch, HIGH);
+    delayMicroseconds(1);
+
+    digitalWrite(latch, LOW);
+    shiftOut(data, clockpin, MSBFIRST, NUM[13]); // lee el arreglo y pasa cada NUM a lectura binaria
+    shiftOut(data, clockpin, MSBFIRST, NUM[0]); // lee el arreglo y pasa cada NUM a lectura binaria
+    digitalWrite(latch, HIGH);
+    delayMicroseconds(1);
+
+    digitalWrite(latch, LOW);
+    shiftOut(data, clockpin, MSBFIRST, NUM[14]); // lee el arreglo y pasa cada NUM a lectura binaria
+    shiftOut(data, clockpin, MSBFIRST, NUM[0]); // lee el arreglo y pasa cada NUM a lectura binaria
+    digitalWrite(latch, HIGH);
+    delayMicroseconds(1);
+  }
+
+  estado_left_sen = digitalRead(left_sen);
+  estado_right_sen = digitalRead(right_sen);
+
+
+  if (estado_left_sen != lastButtonState_left) {
+    if (estado_left_sen == HIGH) {
+      start = true;
+      start1 = false;
+      ok = false;
+
+      if (contador <= 5940) {
+
+        if (contadorU >= 10) {
+          contadorU = 0;
+        }
+        if (contadorU >= 9) {
+          contadorD++;
+        }
+        if (contadorD >= 6) {
+          contadorD = 0;
+          contadorC++;
+        }
+        if (contadorC >= 10) {
+          contadorC = 0;
+          contadorM++;
+        }
+        if (contadorM >= 6) {
+          contadorM = 0;
+        }
+        contador++;
+        contadorU++;
+
+      }
+
+    }
+  }
+  lastButtonState_left  = estado_left_sen;
+
+  if (estado_right_sen != lastButtonState_right ) {
+    if (estado_right_sen == HIGH) {
+      start1 = true;
+      //start = false;
+      ok = true;
+    }
+  }
+  lastButtonState_right  = estado_right_sen;
+
+  if (start1 == true) {
+    time = millis();
+    if (time - t > tiempo) {
+      t = time;
+      if (contador > 0) {
+        contador--;
+        contadorU--;
+
+        if (contadorU == 0) {
+
+          contadorU = 10;
+
+        }
+
+        if (contadorU == 9) {
+          if (contadorD > 0) {
+            contadorD--;
+          }
+        }
+        else if (contadorD == 0 && contadorU == 10) {
+          ena_D = true;
+        }
+
+        if ((ena_D == true) && (contadorU == 9)) {
+
+          if (contadorC > 0) {
+            contadorD = 5;
+            ena_D = false;
+            contadorC--;
+          }
+        }
+        if (contadorC == 0 && contadorD == 0 && contadorU == 10) {
+          ena_C = true;
+        }
+        if (ena_C == true && contadorD == 5 && contadorU == 9) {
+          if (contadorM > 0) {
+            contadorC = 9 ;
+            ena_C = false;
+            contadorM--;
+          }
+
+        }
+      }
+    }
+    cont ();
+  }
+  if (contadorU == 10 && contadorD == 0 && contadorC == 0 && contadorM == 0) {
+    ok = false;
+  }
+  if (start == true) {
+    cont ();
+  }
+
+
+}
+void cont() {
+  digitalWrite(latch, LOW);
+  if (ok == false && contadorU >= 0 && contadorD >= 0 && contadorC >= 0 && contadorM >= 0) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[11]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  else if (ok == true && (contadorU > 0 || contadorD > 0 || contadorC > 0 || contadorM > 0)) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[15]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  shiftOut(data, clockpin, MSBFIRST, NUM[contadorM]); // lee el arreglo y pasa cada NUM a lectura binaria
+  digitalWrite(latch, HIGH);
+  delayMicroseconds(1);
+
+  digitalWrite(latch, LOW);
+  if (ok == false && contadorU >= 0 && contadorD >= 0 && contadorC >= 0 && contadorM >= 0) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[12]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  else if (ok == true && (contadorU > 0 || contadorD > 0 || contadorC > 0 || contadorM > 0)) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[16]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  shiftOut(data, clockpin, MSBFIRST, NUM[contadorC]); // lee el arreglo y pasa cada NUM a lectura binaria
+  digitalWrite(latch, HIGH);
+  delayMicroseconds(1);
+
+  digitalWrite(latch, LOW);
+  if (ok == false && contadorU >= 0 && contadorD >= 0 && contadorC >= 0 && contadorM >= 0) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[13]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  else if (ok == true && (contadorU > 0 || contadorD > 0 || contadorC > 0 || contadorM > 0)) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[17]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  shiftOut(data, clockpin, MSBFIRST, NUM[contadorD]); // lee el arreglo y pasa cada NUM a lectura binaria
+  digitalWrite(latch, HIGH);
+  delayMicroseconds(1);
+
+  digitalWrite(latch, LOW);
+  if (ok == false && contadorU >= 0 && contadorD >= 0 && contadorC >= 0 && contadorM >= 0) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[14]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  else if (ok == true && (contadorU > 0 || contadorD > 0 || contadorC > 0 || contadorM > 0)) {
+    shiftOut(data, clockpin, MSBFIRST, NUM[18]); // lee el arreglo y pasa cada NUM a lectura binaria
+  }
+  shiftOut(data, clockpin, MSBFIRST, NUM[contadorU]); // lee el arreglo y pasa cada NUM a lectura binaria
+  digitalWrite(latch, HIGH);
+  delayMicroseconds(1);
+}
